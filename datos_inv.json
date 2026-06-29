@@ -1,0 +1,18 @@
+[
+    {
+        "codigo_barras": "7861001",
+        "producto": "Laptop",
+        "precio": 800.0,
+        "stock": 4,
+        "categoria": "Tecnología",
+        "precio_final": 806.4
+    },
+    {
+        "codigo_barras": "7861002",
+        "producto": "Cuaderno",
+        "precio": 2.5,
+        "stock": 50,
+        "categoria": "Útiles",
+        "precio_final": 2.875
+    }
+]

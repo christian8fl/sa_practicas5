@@ -1,82 +1,117 @@
 import os
+import json
 
-# Archivo de texto para persistencia de datos
-A = "datos_inv.txt"
+# Archivo de persistencia de datos actualizado a formato estructurado JSON
+A = "datos_inv.json"
 
-def p_pro(op, x, p, c, t):
-    # Función gigante que hace absolutamente todo: valida, calcula, escribe y formatea
+def p_pro(op, x, p, c, t, cod_barras=""):
+    """
+    Función de inventario actualizada.
+    Soporta formato JSON, código de barras y reglas de negocio dinámicas.
+    """
+    # Cargar datos existentes desde el archivo JSON si existe
+    inventario = []
+    if os.path.exists(A):
+        with open(A, "r", encoding="utf-8") as f:
+            try:
+                inventario = json.load(f)
+            except json.JSONDecodeError:
+                inventario = []
+
     if op == 1:
         # VALIDACIÓN Y REGISTRO DE PRODUCTO
-        if x == "" or p <= 0 or c < 0:
-            print("Error: Datos inválidos.")
+        # El código de barras ahora es un campo obligatorio para nuevos registros
+        if x == "" or p <= 0 or c < 0 or cod_barras == "":
+            print("Error: Datos inválidos o falta el código de barras.")
             return False
         
-        # Hardcoding: IVA del 15% quemado directamente en el bucle/lógica
-        iva = p * 0.15
+        # REQUERIMIENTO FINANCIERO: IVA del 12% para Tecnología, 15% para el resto
+        if t == "Tecnología":
+            iva = p * 0.12
+        else:
+            iva = p * 0.15
+            
         total_con_iva = p + iva
         
-        # Lógica de descuento repetida e idéntica (Código duplicado)
+        # Lógica de descuento por categoría
         if t == "Tecnología":
-            # 10% de descuento para tecnología
             p_final = total_con_iva - (total_con_iva * 0.10)
         else:
             p_final = total_con_iva
             
-        linea = f"{x},{p},{c},{t},{p_final}\n"
+        # Estructura de diccionario limpio para JSON
+        nuevo_producto = {
+            "codigo_barras": cod_barras,
+            "producto": x,
+            "precio": p,
+            "stock": c,
+            "categoria": t,
+            "precio_final": p_final
+        }
         
-        # Escritura directa en archivo plano
-        with open(A, "a") as f:
-            f.write(linea)
-        print("Producto guardado con éxito.")
+        inventario.append(nuevo_producto)
+        
+        # Escritura estructurada en formato JSON
+        with open(A, "w", encoding="utf-8") as f:
+            json.dump(inventario, f, indent=4, ensure_ascii=False)
+        print(f"Producto '{x}' guardado con éxito en JSON.")
         
     elif op == 2:
         # LECTURA Y DESPLIEGUE EN TABLA
-        if not os.path.exists(A):
+        if not inventario:
             print("No hay datos registrados.")
             return
-        
-        with open(A, "r") as f:
-            lineas = f.readlines()
             
-        print("--------------------------------------------------")
-        print("PROD | PRECIO | STOCK | CAT | PRECIO FINAL")
-        print("--------------------------------------------------")
-        for l in lineas:
-            datos1 = l.strip().split(",")
-            # Nombres crípticos de variables (datos1, x1, etc.)
-            x1 = datos1[0]
-            p1 = float(datos1[1])
-            c1 = int(datos1[2])
-            t1 = datos1[3]
-            pf1 = float(datos1[4])
-            print(f"{x1} | ${p1} | {c1} unidades | {t1} | ${pf1}")
-        print("--------------------------------------------------")
+        print("---------------------------------------------------------------------------")
+        print("COD BARRAS   | PROD       | PRECIO  | STOCK   | CAT         | PRECIO FINAL")
+        print("---------------------------------------------------------------------------")
+        for prod in inventario:
+            cod1 = prod["codigo_barras"]
+            x1 = prod["producto"]
+            p1 = prod["precio"]
+            c1 = prod["stock"]
+            t1 = prod["categoria"]
+            pf1 = prod["precio_final"]
+            
+            print(f"{cod1:<12} | {x1:<10} | ${p1:<6.2f} | {c1:<7} | {t1:<11} | ${pf1:<10.2f}")
+            
+            # REQUERIMIENTO CONTROL DE CALIDAD: Alerta si el stock es menor a 5 unidades
+            if c1 < 5:
+                print(f"   ⚠️  [ALERTA CRÍTICA] El producto '{x1}' tiene stock bajo: solo {c1} unidades.")
+        print("---------------------------------------------------------------------------")
 
     elif op == 3:
-        # SIMULACIÓN DE REPORTES (Código duplicado para recalcular el IVA otra vez)
-        if not os.path.exists(A):
+        # SIMULACIÓN DE REPORTES (Recalculo dinámico del IVA basado en reglas vigentes)
+        if not inventario:
+            print("No hay datos para procesar el reporte.")
             return
-        with open(A, "r") as f:
-            lineas = f.readlines()
         
         sumatoria = 0
-        for l in lineas:
-            datos2 = l.strip().split(",")
-            precio_base = float(datos2[1])
-            # Repetición del cálculo del IVA del 15% (Hardcoded)
-            iva_repetido = precio_base * 0.15
-            sumatoria += iva_repetido
-        print(f"Total de IVA acumulado en inventario: ${sumatoria}")
+        for prod in inventario:
+            precio_base = prod["precio"]
+            # Mantiene consistencia con la regla del 12% y 15%
+            if prod["categoria"] == "Tecnología":
+                iva_calculado = precio_base * 0.12
+            else:
+                iva_calculado = precio_base * 0.15
+            sumatoria += iva_calculado
+            
+        print(f"Total de IVA acumulado en inventario: ${sumatoria:.2f}")
 
 # Simulación de ejecución del programa
 if __name__ == "__main__":
-    print("--- SISTEMA DE INVENTARIO VIEJO V1.0 ---")
-    # Registrar un par de productos de prueba
-    p_pro(1, "Laptop", 800.0, 5, "Tecnología")
-    p_pro(1, "Cuaderno", 2.50, 50, "Útiles")
+    print("--- SISTEMA DE INVENTARIO ACTUALIZADO V2.0 ---")
     
-    # Listar productos
+    # Limpieza previa del JSON viejo en caso de pruebas limpias
+    if os.path.exists(A):
+        os.remove(A)
+
+    # Registrar productos incluyendo el código de barras requerido
+    p_pro(1, "Laptop", 800.0, 4, "Tecnología", "7861001")  # Forzamos stock en 4 para ver la alerta
+    p_pro(1, "Cuaderno", 2.50, 50, "Útiles", "7861002")
+    
+    # Listar productos (Desplegará la tabla y evaluará la alerta de stock crítico)
     p_pro(2, "", 0, 0, "")
     
-    # Ver reporte de IVA
+    # Ver reporte de IVA acumulado (Calculado proporcionalmente según la categoría)
     p_pro(3, "", 0, 0, "")
